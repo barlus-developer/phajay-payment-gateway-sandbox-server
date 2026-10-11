@@ -1,0 +1,24 @@
+name: validate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - run: go test ./... -race -cover && go vet ./... && go build ./...
+      - run: go test ./... -race -cover && go vet ./...
+        working-directory: sdk-fork
+      - run: bun install --frozen-lockfile && bun run lint && bun run test && bun run build
+        working-directory: web
+      - run: bun --bun playwright install --with-deps chromium && bun run test:e2e
+        working-directory: web
+      - run: bun run scripts/docker-smoke.ts

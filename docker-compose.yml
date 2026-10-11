@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MASTER_KEY: ${MASTER_KEY:?Set a stable base64 32-byte MASTER_KEY in .env}
+      ALLOW_LOCAL_WEBHOOKS: ${ALLOW_LOCAL_WEBHOOKS:-false}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      SESSION_TTL: ${SESSION_TTL:-24h}
+      PAYMENT_TTL: ${PAYMENT_TTL:-15m}
+      WEBHOOK_TIMEOUT: ${WEBHOOK_TIMEOUT:-10s}
+      WEBHOOK_MAX_ATTEMPTS: ${WEBHOOK_MAX_ATTEMPTS:-8}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-15s}
+    volumes:
+      - sqlite_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 20s
+volumes:
+  sqlite_data:

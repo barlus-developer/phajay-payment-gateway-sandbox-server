@@ -1,7 +1,10 @@
 # SDK compatibility investigation
 
-Status: **investigated, not implemented**. No sandbox server or SDK patch has
-been built in this checkout. This document records the contract for implementation.
+Status: **implemented and tested through the actual SDK in process**. All six
+sandbox routes, response decoding, token lookup/confirmation, and signed QR
+callbacks pass integration tests. The verifier is in the explicit managed
+`sdk-fork/`; upstream users require that fork or a release containing its patch.
+Browser and Docker validation remain blocked; see DEVELOPMENT_STATUS.md.
 
 Inspected on 2026-10-11: local SDK repository
 `../phajay-payment-gateway`, commit
@@ -99,7 +102,7 @@ and [sandbox QR documentation](https://payment-doc.lailaolab.com/v1/sandbox/paym
 | QR field-table descriptions swap transaction ID and QR meanings. | Follow SDK types and the guide's example: `transactionId` is the ID, `qrCode` is the payload. |
 | Official QR example encodes a bank-like payload and uses an app deep link. | Retain field types but use only a self-hosted simulator URL, as required by this platform's safety contract. |
 | Link guide has callback fields beyond the SDK model. | Target the modeled sandbox callback fields; do not replace it with the production type. |
-| Examples vary between `SUCCESS` and `SUCCESSFULLY`. | SDK accepts both; use `SUCCESS` consistently for the sandbox. |
+| Examples vary between `SUCCESS` and `SUCCESSFULLY`. | SDK accepts arbitrary message strings; this server returns descriptive sandbox messages. |
 
 ## Required SDK signature patch
 
@@ -108,7 +111,8 @@ In this SDK snapshot, `VerifyWebhookSignature()` returns
 `ErrWebhookSignatureVerificationUnavailable` for every configured-key request,
 including `WithSandbox()`. `DecodeWebhook()` verifies before unmarshaling and
 leaves the callback unchanged on verification failure. Consequently, the
-requested default-enabled sandbox verification **does not currently work**.
+default-enabled sandbox verification does not work in the unpatched upstream
+snapshot. The explicitly managed `sdk-fork/` now implements the following patch.
 
 Patch the separate SDK repository or an explicitly identified local fork:
 
@@ -136,6 +140,8 @@ delivery is at least once.
 The SDK's existing sandbox tests explicitly cover all six paths, raw-key Basic
 authentication, `secretKey`, and response decoding. Its current webhook-policy
 test explicitly asserts that sandbox mode does not bypass verification.
-These tests are references, not proof that this unimplemented server works.
-Execution results and environment blockers are recorded in
+The platform additionally tests all six operations using the real SDK against
+Gin through an in-process HTTP transport, avoiding prohibited local listeners.
+Amounts use LAK scale two; link checkout currently simulates JDB. Token URLs
+are the only QR payload. Execution results and remaining blockers are recorded in
 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md).

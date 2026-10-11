@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+!.env.example
+**/node_modules
+web/dist
+data
+!docker/data/
+!docker/data/.keep
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+coverage*
+.agents
+.codex
+.aws

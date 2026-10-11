@@ -1,0 +1,27 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime data, including SQLite WAL and shared-memory files
+data/
+!docker/data/
+!docker/data/.keep
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Build products and dependency installations
+bin/
+web/dist/
+node_modules
+coverage.out
+*.test

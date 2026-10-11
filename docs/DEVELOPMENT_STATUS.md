@@ -1,138 +1,62 @@
 # Development status
 
-Recorded on 2026-10-11. **Implementation is blocked; no platform acceptance
-criteria have been completed and no commits have been created.**
+Recorded 2026-10-11. **The platform is implemented in the workspace but is not a fully validated delivery.** Frontend dependencies and the Bun lockfile cannot be completed without registry access. Browser/container acceptance checks and a new Git commit are blocked by the active environment.
 
-## Environment recheck after the user's fix
+## Scope and version control
 
-Git metadata is now readable. `git status --short` lists the two audit documents
-and the existing `go.mod` as untracked. The configured `origin` matches the
-supplied GitHub repository. The local `main` branch has no commits yet.
+The latest instruction requests one delivery and removes per-task commit gates. Work continued across all phases. The user's initial commit remains `0ec41c3` (`chore: initialize phajay sandbox project`). No remote push, destructive Git operation, or unrelated change was performed.
 
-However, staging the two reviewed audit documents failed with exit 128:
+The session exposes `.git` read-only. Final command-line staging of the reviewed task files failed creating `.git/index.lock` with exit 128; current `git status`, diff inspection and diff whitespace checks work. No new commit hash exists. Git metadata was not relocated to bypass that restriction.
 
-```text
-fatal: Unable to create '.../.git/index.lock': Read-only file system
-```
+## Implemented source
 
-The active session still denies writes to Git metadata even though the directory's
-displayed permissions are writable. No files were staged and no commit was made.
-Rechecks also reproduced GitHub DNS failure, the skills manifest DNS failure,
-the SDK's forbidden local-listener failure, and Docker socket permission denial.
-The initial findings below are retained as the audit history; the Git metadata
-visibility issue has been resolved, but the Git write restriction remains.
+- Go/Gin server, validated configuration, graceful shutdown, health/readiness, static SPA handling, API separation and streaming shutdown.
+- Public-origin normalization matches browser hostname casing and default ports, preventing valid registration and CSRF-protected requests from being rejected by equivalent URL spellings; six regression cases pass.
+- Domain/services/ports/adapters, exact fixed-point LAK amounts, raw `database/sql` SQLite repositories, WAL, per-connection foreign keys/busy timeout, atomic transactions and checksummed migrations.
+- Argon2id registration/login, hashed sessions, cookies, CSRF/origin checks, bounded authentication rate limits, password changes and session revocation.
+- Ownership-scoped projects/settings, one-time API secrets, hash verification/revocation/rotation, encrypted signing keys with rotation metadata.
+- Six exact SDK sandbox routes, pending transaction creation, opaque QR URLs, checkout capability tokens, explicit atomic confirmation/failure/cancellation, idempotency, expiration and SSE state recovery.
+- Durable webhook outbox, fenced leases, asynchronous worker, retries, restart recovery, sanitized responses, SSRF/DNS pinning and controlled local callback opt-in.
+- Explicit managed SDK fork from commit `1ebf09402433d71a9b629b9573b3dce0818183c9`, sandbox-only HMAC verifier, unchanged production policy, original sources/tests/license and documented release requirements.
+- React portal and simulator route source, real API data, project switching, management forms, QR rendering, camera/image/manual scanning, receipt and SSE/polling checkout. No mock production transaction data.
+- OpenAPI 3.1, integration/signature/operations guides, pinned Bun/Go Docker stages, Compose persistent volume, CI, a Bun browser flow suite and Docker smoke script.
 
-## Workspace findings
+## Validation performed
 
-The supplied checkout exposes only the existing `go.mod` before this audit.
-Its module path is `github.com/barlus-developer/phajay-payment-gateway-sandbox-server`
-and its Go directive is `1.27.1`; the file was preserved unchanged.
-During the initial audit, the workspace's `.git` directory appeared empty and
-read-only. `git status --short` and `git rev-parse --git-dir` both reported
-`fatal: not a git repository`. The underlying Git history cannot be inspected,
-staged, or committed during that initial audit. The protected directory was not changed.
+| Check | Result |
+| --- | --- |
+| Main `go test ./... -race -cover -count=1` | Passed after actual-SDK QR/link, authorization, SSE, repository, service and security tests. |
+| `go vet ./...`, `go build ./...` | Passed, including a fresh `CGO_ENABLED=0` production-server build. |
+| Focused managed SDK signature/policy/decoder tests with race/coverage | Passed; production remains fail-closed. |
+| Actual SDK all six sandbox operations | Passed through in-process Gin HTTP transport, including exact headers, response decoding, explicit confirmation and verified QR/link callbacks. |
+| Concurrent confirmation | 32 confirmations return the completed state; one history completion and one durable delivery event. |
+| Outbox rollback, migration checksum/rollback, recycled-connection pragmas, backup/reopen | Passed with real temporary SQLite files. |
+| Webhook retry, stable event IDs, recovered leases and stale-worker fencing | Passed. |
+| Payment expiration during blocked delivery; worker cancellation/shutdown | Passed. |
+| Bun tests | Five tests pass for request cookies/CSRF/errors, exact amount formatting, token extraction, expiry calculations and image validation. These are utility tests, not browser coverage. |
+| Frontend syntax formatting and cached dependency diagnostic | Passed parsing; type check now reports only missing TanStack Query and QR scanner modules. This is not a successful full build. |
+| OpenAPI syntax, 344 schema references, six SDK paths | Checked; 39 documented paths. |
+| Docker Compose configuration | Passed with a disposable test encryption key. |
+| Bun Docker smoke script | Bundles successfully; not executed against containers. |
+| Bun browser flow suite | Authored against a real Go server/SQLite; execution stops because Playwright is unavailable. No browser tests are claimed passed. |
+| Git diff whitespace and generated/secret exclusions | Checked. |
 
-Other observed restrictions:
+Go checks use writable cache/temp paths under `/tmp` and offline module resolution. Available frontend packages were installed by Bun into a temporary diagnostic project using cached packages; required uncached libraries were not substituted or faked. The workspace's ignored `web/node_modules` points to that temporary diagnostic installation and is not deployable or committed. Browser test source also parses through Bun bundling with unresolved dependencies left external; that does not validate browser execution.
 
-| Operation | Observed result | Impact |
-| --- | --- | --- |
-| `git ls-remote` against the supplied GitHub repository | Could not resolve `github.com` | Cannot retrieve or verify remote history. |
-| `bunx --bun skills find superpowers` with writable temporary/cache paths | `DNSResolveFailed` downloading the skills manifest | Skill installation and registry discovery through the CLI unavailable. |
-| SDK full race/coverage test suite | `httptest` panics: local socket creation is not permitted | HTTP integration, end-to-end server, and SSE tests cannot run. |
-| `docker version` | Client present; permission denied connecting to `/var/run/docker.sock` | Docker build, startup, restart, and persistence checks cannot run. |
+## Actual environment blockers
 
-Go `1.27.1` and Bun `1.4.2` are installed. Gin `v1.12.0` and modernc SQLite
-`v1.38.2` are present in the existing Go module cache, along with cached Bun
-packages. Cache presence does not prove every required dependency is available.
-Browser-backed web access worked for reading skills and public API documentation;
-that does not grant the shell access to dependency registries or local sockets.
+1. `bun install` reports `DNSResolveFailed` for registry manifests. Offline installation cannot resolve `@tanstack/react-query`, `qr-scanner` or the added `playwright` browser test dependency, which are absent from cache. Consequently no genuine `web/bun.lock` exists. `bun run build` stops at the missing application modules; `bun run test:e2e` stops at missing Playwright. The Dockerfile deliberately requires the lockfile and frozen installation.
+2. Docker build fails connecting to `/var/run/docker.sock`: permission denied. Image/startup/persistence/recovery smoke checks cannot run here.
+3. The original complete SDK suite panics creating its `httptest` TCP listener (`socket: operation not permitted`). Live application startup and browser tests likewise need local socket access. The main integration tests avoid listeners through an actual SDK HTTP transport.
+4. `.git` metadata remains read-only under this session's filesystem policy; a new commit cannot be created here.
+5. `go mod tidy` additionally attempts uncached dependency-test tools and fails on the read-only module cache. Main application tests/build/vet pass; a connected environment should rerun tidy and review any resulting dependency cleanup.
 
-## Skill discovery
+## Remaining acceptance work
 
-Read the requested local `find-skills` skill and checked the skills.sh leaderboard
-before searching. The following are suitable for this work:
+Complete Bun installation, generate/review its only lockfile, run full lint/build, install Chromium, and run the authored browser flow suite for auth, switching projects, keys, webhooks, scanning, confirmation, transaction details and realtime recovery. Resolve actual build/browser failures and expand coverage as required. Run the full original SDK suite, CI and Docker smoke script, test real camera permissions/scanning on HTTPS/mobile, confirm container upgrades/backups, then commit the reviewed complete delivery using command-line Git. No remaining acceptance criterion is claimed as passed without that evidence.
 
-| Skill | Purpose | Availability and quality evidence |
-| --- | --- | --- |
-| [Superpowers](https://skills.sh/obra/superpowers/using-superpowers), by `obra` | Main development workflow, focused tasks, debugging, testing, and verification | Remote instructions read, including Codex adaptation, brainstorming, and verification-before-completion; not installed. Directory reports about 260K installs for using-superpowers and 297K repository stars. |
-| [Vercel React best practices](https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices) | React data fetching, rendering, and bundle performance | Official Vercel source; directory reports about 788K installs and 32K repository stars. Found but not installed or applied to product code. |
-| `golang-design-patterns` | Constructors, resource lifetimes, context handling, and hexagonal architecture | Already installed; skill and hexagonal-architecture reference read. User's explicit architecture requirement supplies the choice. |
-| `shadcn` | Component selection, accessible forms, semantic styling, and Bun CLI usage | Already installed; instructions read. Application awaits frontend implementation. |
+## Skills and SDK investigation
 
-Counts are directory snapshots, not security guarantees. Use the existing Go
-and shadcn skills, Superpowers' process guidance, and React-specific guidance;
-there is no need to introduce Next.js or a hosted site builder.
+Used the requested local find-skills workflow and read Superpowers using-superpowers, brainstorming, TDD and verification instructions from official obra sources; CLI skill installation was blocked by DNS. Supporting local Golang design-patterns/hexagonal and shadcn skills were read and applied. Vercel React guidance was discovered but not installed. Existing local shadcn-generated Base UI components were reused; registry component addition through Bun CLI was blocked by DNS.
 
-After restoring the environment, install the selected external skills with Bun:
-
-```bash
-bunx --bun skills add obra/superpowers
-bunx --bun skills add vercel-labs/agent-skills@vercel-react-best-practices
-```
-
-Select the relevant Superpowers workflow skills for Codex during installation.
-No global installation, Node runtime, or competing package-manager lockfile was
-created in this session. Superpowers' verification guidance was applied to the
-audit; the user's supplied implementation requirements take precedence over
-optional skill approval steps.
-
-## SDK audit and validation
-
-Inspected the clean local SDK at commit
-`1ebf09402433d71a9b629b9573b3dce0818183c9`, without modifying it.
-See [SDK_COMPATIBILITY.md](SDK_COMPATIBILITY.md) for exact routes, headers,
-request and response fields, callback differences, and the required signature patch.
-
-Ran in the SDK repository with writable build-cache and temporary paths:
-
-```bash
-GOCACHE=/tmp/phajay-sdk-go-cache GOTMPDIR=/tmp GOPROXY=off \
-  go test ./... -race -cover
-```
-
-Result: **blocked**, exit 1. `TestDocumentedEndpoints/transaction_status` could
-not create its local HTTP listener (`socket: operation not permitted`). This
-does not establish a defect in the SDK or a passing full test suite.
-
-```bash
-GOCACHE=/tmp/phajay-sdk-go-cache GOTMPDIR=/tmp GOPROXY=off \
-  go test ./... -race -cover \
-  -run '^(TestWebhookVerificationPolicy|TestDecodeWebhookBypassCallbackTypes|TestDecodeWebhookJSONErrors)$' \
-  -count=1
-```
-
-Result: **passed**, exit 0; 20.2% statement coverage for this limited selection.
-These are existing SDK policy/decoding tests. The bypass cases test existing
-SDK behavior, not a proposed normal platform integration. No custom sandbox
-HMAC verifier exists yet.
-
-```bash
-GOCACHE=/tmp/phajay-sdk-go-cache GOTMPDIR=/tmp GOPROXY=off go vet ./...
-```
-
-Result: **passed**, exit 0. No backend, frontend, integration, or Docker platform
-tests were claimed to pass.
-
-## Work preserved and continuation
-
-- Task: SDK and skill investigation.
-- Changes: captured compatibility requirements, contract discrepancies, and
-  environment evidence.
-- Files: `docs/SDK_COMPATIBILITY.md`, `docs/DEVELOPMENT_STATUS.md`.
-- Tests: existing SDK selection passed; full suite blocked by local sockets.
-- Validation: SDK vet passed; document paths and contract details reviewed.
-- Commit: unavailable; proposed message `docs(sdk): record sandbox compatibility investigation`.
-- Commit hash: none.
-- Issues: the mandatory commit gate prevents advancing to implementation tasks.
-
-To resume, reopen the real checkout with its existing Git metadata readable and
-writable, permit shell access to GitHub and required package registries, permit
-local listening sockets for server tests, and provide Docker daemon access (or
-a working isolated Docker environment). The SDK source needs a writable checkout
-in its own repository or an explicitly managed fork for its signature patch.
-
-Once restored, inspect Git status and history before staging these documents,
-verify the SDK snapshot against the chosen remote revision, finish and commit
-the audit, then implement the user's eight phases in order. Preserve unrelated
-work and the existing Go module. Do not initialize replacement Git history,
-silently vendor the SDK, or present unvalidated scaffolding as a completed task.
+SDK source is the primary compatibility reference. Documentation differences and selected behavior are recorded in SDK_COMPATIBILITY.md. The original sibling SDK repository was left unchanged. The managed fork is explicit in go.mod and sdk-fork/FORK.md; consumers need that fork or an upstream release for SDK-managed sandbox verification.
